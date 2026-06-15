@@ -19,8 +19,11 @@ the browser).
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET,PUBLIC_BASE_URL&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET,PUBLIC_BASE_URL)
 
-After the platform finishes building, set `PUBLIC_BASE_URL` to the URL the
-deploy gave you (e.g. `https://your-app.vercel.app`) and redeploy.
+On Vercel and Railway you can leave `PUBLIC_BASE_URL` empty — the app reads
+`VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`
+automatically, so `success_url`, `cancel_url`, and the webhook URL all point
+at the right host without a post-deploy step. Set `PUBLIC_BASE_URL` only when
+you wire up a custom domain that isn't reflected in those platform env vars.
 
 ## Run locally
 
@@ -51,7 +54,7 @@ pnpm dev                   # http://localhost:4000
 | `COPE_PUBLISHABLE_KEY` | yes | `cope_pk_…` key from Dashboard → Settings → Developers. Safe in the browser. |
 | `COPE_PRODUCT_UUID` | yes | UUID of the product to sell. |
 | `COPE_WEBHOOK_SECRET` | yes | `whsec_…` returned when you register the webhook endpoint with COPE. |
-| `PUBLIC_BASE_URL` | yes | Where this app is reachable. Used for `success_url`, `cancel_url`, webhook URL. |
+| `PUBLIC_BASE_URL` | yes locally / no on Vercel & Railway | Where this app is reachable. Used for `success_url`, `cancel_url`, webhook URL. On Vercel/Railway falls back to `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`. |
 | `COPE_DEFAULT_CURRENCY` | no | Default form value. Defaults to `EUR`. |
 | `COPE_API_BASE` | no | Override the API URL derived from `COPE_ENV`. |
 | `COPE_CHECKOUT_BASE` | no | Override the checkout URL derived from `COPE_ENV`. |
@@ -89,7 +92,30 @@ you grant LMS access, mark the order paid in your DB, etc.
 
 ## Registering the webhook
 
-COPE has to know where to POST events. Once this app is deployed:
+COPE has to know where to POST events. Once this app is deployed (and
+reachable over HTTPS), point COPE at `<your-url>/api/webhooks/cope`.
+
+### `pnpm register` (recommended)
+
+```bash
+COPE_API_KEY=cope_sk_… \
+PUBLIC_BASE_URL=https://your-app.vercel.app \
+pnpm register
+```
+
+The script POSTs to `/v1/webhooks/endpoints`, prints the returned
+`signing_secret`, and shows you a follow-up `curl` for triggering a test
+delivery. Paste the secret into `COPE_WEBHOOK_SECRET` (in `.env` locally, or
+in Vercel/Railway environment variables), then redeploy so the receiver can
+verify the HMAC.
+
+> `COPE_API_KEY` is a **server-side** `cope_sk_…` key. It runs only inside
+> this one-shot script — never goes into the browser bundle, never lives in
+> the app's runtime env. Don't commit it to `.env`.
+
+### Equivalent raw `curl`
+
+Same call without the script — handy if you're running in a CI step:
 
 ```bash
 curl -X POST "$COPE_API_BASE/v1/webhooks/endpoints" \
@@ -105,15 +131,9 @@ curl -X POST "$COPE_API_BASE/v1/webhooks/endpoints" \
   }'
 ```
 
-The response includes a `signing_secret` — paste it into `COPE_WEBHOOK_SECRET`
-and redeploy.
-
-> `$COPE_API_KEY` here is a **server-side** `cope_sk_…` key. Do NOT use it
-> anywhere except this one-shot registration call.
-
 ### Testing the receiver without a real purchase
 
-Once registered:
+Once registered, ask COPE to send a synthetic delivery:
 
 ```bash
 curl -X POST "$COPE_API_BASE/v1/webhooks/endpoints/$ENDPOINT_ID/test-events" \

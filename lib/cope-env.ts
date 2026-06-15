@@ -47,11 +47,37 @@ export function getServerEnvConfig(): CopeEnvConfig {
     name,
     apiBase: process.env.COPE_API_BASE ?? preset.apiBase,
     checkoutBase: process.env.COPE_CHECKOUT_BASE ?? preset.checkoutBase,
-    publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:4000",
+    publicBaseUrl: resolvePublicBaseUrl(),
     publishableKey: process.env.COPE_PUBLISHABLE_KEY ?? "",
     productUuid: process.env.COPE_PRODUCT_UUID ?? "",
     defaultCurrency: process.env.COPE_DEFAULT_CURRENCY ?? "EUR",
   };
+}
+
+/**
+ * Resolve the public-facing URL of this app, in priority order:
+ *
+ *   1. `PUBLIC_BASE_URL`               — explicit, wins. Use for custom domains
+ *                                        or tunnels (cloudflared/ngrok/etc.).
+ *   2. `VERCEL_PROJECT_PRODUCTION_URL` — Vercel's stable production hostname.
+ *   3. `VERCEL_URL`                    — Vercel's per-deployment hostname
+ *                                        (set on every deploy, incl. previews).
+ *   4. `RAILWAY_PUBLIC_DOMAIN`         — Railway's auto-assigned public domain.
+ *   5. `http://localhost:4000`         — local fallback.
+ *
+ * So you can leave `PUBLIC_BASE_URL` unset on Vercel/Railway — the app still
+ * builds `success_url`, `cancel_url`, and the webhook URL correctly.
+ */
+function resolvePublicBaseUrl(): string {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  }
+  return "http://localhost:4000";
 }
 
 /**
