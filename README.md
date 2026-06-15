@@ -16,14 +16,22 @@ the browser).
 
 ## One-click deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID)
 
-On Vercel and Railway you can leave `PUBLIC_BASE_URL` empty — the app reads
-`VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`
-automatically, so `success_url`, `cancel_url`, and the webhook URL all point
-at the right host without a post-deploy step. Set `PUBLIC_BASE_URL` only when
-you wire up a custom domain that isn't reflected in those platform env vars.
+The deploy form asks for **three** values up front (env name + publishable key
++ product UUID). That's enough to render the site and run the checkout pages.
+
+Two values are filled in **after** the first deploy because they don't exist
+yet at that point — both are wired up automatically by the code:
+
+- `PUBLIC_BASE_URL` — picked from `VERCEL_PROJECT_PRODUCTION_URL` /
+  `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN` automatically. Set it manually only
+  if you map a custom domain that isn't reflected in those platform env vars.
+- `COPE_WEBHOOK_SECRET` — comes from registering the webhook endpoint with
+  COPE *against your live URL*. See [Registering the webhook](#registering-the-webhook)
+  below. Until you set it, the webhook route returns HTTP 503 "receiver not
+  configured" — checkout still works, just signed deliveries aren't accepted.
 
 ## Run locally
 
