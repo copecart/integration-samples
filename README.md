@@ -16,8 +16,8 @@ the browser).
 
 ## One-click deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET,PUBLIC_BASE_URL&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET,PUBLIC_BASE_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID,COPE_WEBHOOK_SECRET)
 
 On Vercel and Railway you can leave `PUBLIC_BASE_URL` empty — the app reads
 `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`
