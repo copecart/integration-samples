@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { getServerEnvConfig } from "@/lib/cope-env";
 
+// Render at request time so env vars come from the runtime container, not
+// the build-time environment. `next build` in Docker doesn't have access to
+// our docker-compose env vars; a static page would bake in empty values and
+// show "not configured" even when the runtime env is set correctly.
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   const env = getServerEnvConfig();
 

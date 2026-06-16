@@ -31,22 +31,12 @@ export function HostedCheckoutClient({ env }: { env: PublicEnvConfig }) {
         checkoutBaseUrl: env.checkoutBase,
       });
 
-      // Fetch the product first so we can attach a real plan_id when adding
-      // the line. SDK 0.1.x requires plan_id explicitly; vendors with multiple
-      // plans (one-time vs subscription, etc.) would normally let the buyer
-      // pick. For this single-product sample we default to the first plan.
-      const product = await cope.getProduct(env.productUuid);
-      const planId = product.payment_plans[0]?.id;
-      if (planId === undefined) {
-        throw new Error(
-          `Product ${env.productUuid} has no payment plans. Add one in the dashboard.`,
-        );
-      }
-
       const cart = await cope.createCart({ currency });
+      // plan_id is optional — the API picks the product's default plan when
+      // omitted. Vendors with multiple plans (one-time vs subscription, etc.)
+      // would let the buyer pick and pass it here explicitly.
       await cope.addLine(cart.id, {
         product_id: env.productUuid,
-        plan_id: planId,
         quantity: 1,
       });
 

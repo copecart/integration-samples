@@ -5,6 +5,9 @@ export const metadata = {
   title: "Iframe Checkout — COPE Integration Samples",
 };
 
+// Read env at request time, not build time — see comment in app/page.tsx.
+export const dynamic = "force-dynamic";
+
 export default function IframeCheckoutPage() {
   const env = getServerEnvConfig();
 
@@ -35,18 +38,28 @@ export default function IframeCheckoutPage() {
         <h2 style={{ fontSize: "1rem", color: "#111827" }}>What the code does</h2>
         <p>
           Same cart-and-line setup as hosted checkout, but instead of{" "}
-          <code>redirectToCheckout()</code> we take{" "}
-          <code>checkout.checkoutUrl</code> from the response and render it as
-          an <code>&lt;iframe src=…&gt;</code>. SDK 0.1.x does not expose a
-          higher-level <code>mountCheckout()</code> helper yet; embedding the
-          URL directly is the supported pattern.
+          <code>cope.redirectToCheckout(checkout)</code> we call{" "}
+          <code>cope.mountCheckout(target, checkout, options)</code>. The SDK
+          inserts an <code>&lt;iframe&gt;</code> pointed at the dedicated{" "}
+          <code>/checkout/embed/&lt;token&gt;</code> route and runs a trusted{" "}
+          postMessage handshake before reporting <code>onReady</code>. If the
+          handshake never lands (CSP block, network), the{" "}
+          <code>fallback: &quot;redirect&quot;</code> option sends the buyer
+          to hosted checkout instead of leaving them stuck on a blank box.
         </p>
         <p>
           We pass <code>embed_origin: window.location.origin</code> on the
-          checkout — COPE uses it as a <code>frame-ancestors</code> CSP
-          allow-list. Wrong origin → iframe stays blank with no in-page error.{" "}
-          <strong>Use the public URL from your tunnel/deploy</strong>, not{" "}
-          <code>http://localhost:4000</code>, when testing on staging.
+          checkout — COPE uses it for its per-business{" "}
+          <code>frame-ancestors</code> CSP allow-list. <strong>The origin must
+          be registered ahead of time</strong> at{" "}
+          <a href="https://stg.cope-demo.com/settings/checkout">
+            Settings → Checkout → Embed domains
+          </a>{" "}
+          (or POST <code>/v1/commerce/checkout/embed-domains</code>) — wrong
+          / unregistered origin → CSP says <code>frame-ancestors &apos;none&apos;</code>
+          and Chrome shows &quot;<code>&lt;host&gt;</code> refused to connect&quot;.
+          Registration also registers the domain with Stripe Payment Method
+          Domains so Apple Pay / Google Pay work inside the embed.
         </p>
       </section>
     </main>

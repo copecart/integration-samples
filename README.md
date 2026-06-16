@@ -265,21 +265,24 @@ add the dep you need built to `pnpm.onlyBuiltDependencies` in `package.json`.
   show whether COPE attempted and got 0 attempts logged, a 4xx response, or
   a connection error.
 
-## SDK version notes (`@copecart/sdk@^0.1.1`)
+## Two separate trust settings: embed origins vs success/cancel URLs
 
-A few rough edges in the current SDK release this sample works around. None
-of them block the integration, but they're worth knowing:
+It's easy to conflate these — both are about "URLs the iframe-checkout flow
+trusts" — but they are configured in different places, validated against
+different rules, and fail with different errors. If you only fix one and not
+the other, the flow stays broken.
 
-| Quirk | Where you'll hit it | Workaround |
+| | **Embed origin allow-list** | **`success_url` / `cancel_url`** |
 |---|---|---|
-| `addLine()` requires `plan_id: number` (not in docs yet) | Anywhere you build a cart | Call `cope.getProduct(uuid)` first, use `product.payment_plans[0].id` |
-| `embed_origin` not in `CheckoutPayload` type | Iframe checkout flow | Type-cast at the call site — see [`IframeCheckoutClient.tsx`](./app/iframe-checkout/IframeCheckoutClient.tsx) |
-| No `mountCheckout()` helper yet | Iframe checkout flow | Render `<iframe src={checkout.checkoutUrl}>` directly. Same effect, fewer SDK callbacks |
-| Strict `cope_pk_…` prefix check | App load | Keep secret keys (`cope_sk_…`) on the server only |
+| What it controls | Which parent origin can iframe the checkout (browser-side `frame-ancestors` CSP) | Where COPE redirects the buyer's browser after the checkout completes or is cancelled |
+| Where configured | Per-business list in [Settings → Checkout → Embed domains](https://stg.cope-demo.com/settings/checkout) or via `POST /v1/commerce/checkout/embed-domains` (scope: `commerce:checkout-settings:write`) | Passed inline on each `cope.checkout(...)` call as `success_url` and `cancel_url` |
+| Validation | Browser CSP — wrong origin → `frame-ancestors 'none'`, Chrome shows "&lt;host&gt; refused to connect" | Backend on cart-create — non-HTTPS or malformed → `success_url must use HTTPS` |
+| Side effect | Registering an embed origin also registers it with **Stripe Payment Method Domains**, so wallets (Apple Pay / Google Pay) work in the embed | None |
+| When you'll hit it failing | Iframe checkout, after the SDK posts a checkout request | Both checkout styles, immediately when calling `cope.checkout(...)` |
 
-These will go away as the SDK matures. The patterns in the sample work with
-the current release; if you upgrade and the type cast is no longer needed,
-drop it.
+So a new vendor needs to register their parent origin **once** in the
+dashboard, then their app code passes correct success/cancel URLs **per
+checkout**. Forgetting either yields a different, equally fatal error.
 
 ## Production checklist
 

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@copecart/sdk':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.2.0
+        version: 0.2.0
       next:
         specifier: ^15.5.0
         version: 15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -39,8 +39,8 @@ importers:
 
 packages:
 
-  '@copecart/sdk@0.1.1':
-    resolution: {integrity: sha512-bA67rnxRAggzN2W7UBiWnpEPMLxLi9gquxIAjjL1bGv6I6Zlcr/ICFqGpSo4iMvkKdKKuLDGkzrfKgOJUWEyUw==}
+  '@copecart/sdk@0.2.0':
+    resolution: {integrity: sha512-PKR0jv8Bcy57xT6tNBrXzIRjKTfV3LHMMAErf/k1VePOMVmEPEXLBW9P/HdK82Do9k3OeWkSyCwxpSFQunle6g==}
     engines: {node: '>=20'}
 
   '@emnapi/runtime@1.11.1':
@@ -536,7 +536,7 @@ packages:
 
 snapshots:
 
-  '@copecart/sdk@0.1.1': {}
+  '@copecart/sdk@0.2.0': {}
 
   '@emnapi/runtime@1.11.1':
     dependencies:

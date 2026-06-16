@@ -5,6 +5,9 @@ export const metadata = {
   title: "Hosted Checkout — COPE Integration Samples",
 };
 
+// Read env at request time, not build time — see comment in app/page.tsx.
+export const dynamic = "force-dynamic";
+
 export default function HostedCheckoutPage() {
   const env = getServerEnvConfig();
 
