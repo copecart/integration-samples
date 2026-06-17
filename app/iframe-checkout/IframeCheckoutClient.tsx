@@ -193,8 +193,11 @@ export function IframeCheckoutClient({ env }: { env: PublicEnvConfig }) {
 
         <div style={panel}>
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>Payment</h2>
-          <div id="checkout-frame" style={frame}>
-            {mountedOnce ? null : "Checkout will load here."}
+          <div style={frameWrapper}>
+            {!mountedOnce && (
+              <span style={placeholderOverlay}>Checkout will load here.</span>
+            )}
+            <div id="checkout-frame" style={frameTarget} />
           </div>
           {status && (
             <div
@@ -231,15 +234,27 @@ const panel: React.CSSProperties = {
   padding: "1.25rem",
 };
 
-const frame: React.CSSProperties = {
+const frameWrapper: React.CSSProperties = {
+  position: "relative",
   width: "100%",
   minHeight: 600,
   background: "#f9fafb",
   borderRadius: 8,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+  overflow: "hidden",
+};
+
+const placeholderOverlay: React.CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
   color: "#9ca3af",
+  pointerEvents: "none",
+};
+
+const frameTarget: React.CSSProperties = {
+  width: "100%",
+  minHeight: 600,
 };
 
 const input: React.CSSProperties = {
