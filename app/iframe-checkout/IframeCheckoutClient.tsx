@@ -6,14 +6,15 @@ import type { PublicEnvConfig } from "@/lib/cope-env";
 
 type Status = { message: string; kind: "" | "ok" | "err" };
 
+const MOUNT_READY_TIMEOUT_MS = 6_000;
+const MAX_MOUNT_ATTEMPTS = 2;
+
 export function IframeCheckoutClient({ env }: { env: PublicEnvConfig }) {
   const [currency, setCurrency] = useState(env.defaultCurrency);
   const [busy, setBusy] = useState(false);
   const [mountedOnce, setMountedOnce] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
 
-  // Hold the mounted-checkout handle so we can destroy() before re-mounting,
-  // and on unmount.
   const mountedRef = useRef<{ destroy: () => void } | null>(null);
   useEffect(
     () => () => {
@@ -21,6 +22,18 @@ export function IframeCheckoutClient({ env }: { env: PublicEnvConfig }) {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!env.checkoutBase) return;
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = env.checkoutBase;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [env.checkoutBase]);
 
   async function start() {
     if (!env.publishableKey || !env.productUuid) {
@@ -46,19 +59,12 @@ export function IframeCheckoutClient({ env }: { env: PublicEnvConfig }) {
       });
 
       const cart = await cope.createCart({ currency });
-      // plan_id is optional in SDK 0.2+ — the API picks the product's default
-      // payment plan when omitted. A vendor with multiple plans (one-time vs
-      // subscription, etc.) would let the buyer pick one and pass it here.
       await cope.addLine(cart.id, {
         product_id: env.productUuid,
         quantity: 1,
       });
 
       setStatus({ message: "Creating checkout…", kind: "" });
-      // `embed_origin` MUST match the page hosting this iframe. COPE uses it
-      // for the per-business `frame-ancestors` CSP allow-list — wrong origin
-      // → CSP blocks the iframe with `frame-ancestors 'none'` and the buyer
-      // sees Chrome's "<host> refused to connect" error.
       const checkout = await cope.checkout(cart.id, {
         embed_origin: window.location.origin,
         success_url: `${window.location.origin}/thank-you`,
@@ -66,21 +72,70 @@ export function IframeCheckoutClient({ env }: { env: PublicEnvConfig }) {
         consents: [{ type: "terms-of-purchase", version: "1.0" }],
       });
 
-      // mountCheckout uses checkout.embedCheckoutUrl internally (a dedicated
-      // /checkout/embed/<token> route with dynamic frame-ancestors). It
-      // performs a postMessage handshake before reporting `onReady` — until
-      // then the iframe is hidden. `fallback: "redirect"` sends the buyer to
-      // hosted checkout if the handshake never lands (CSP block, network
-      // failure) instead of leaving them stuck on a blank box.
+      mountWithRetry(cope, checkout);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : String(err);
+      setStatus({ message: `Error: ${message}`, kind: "err" });
+      setBusy(false);
+    }
+  }
+
+  function mountWithRetry(
+    cope: CopeCart,
+    checkout: Parameters<CopeCart["redirectToCheckout"]>[0],
+  ) {
+    let attempts = 0;
+    let ready = false;
+    let watchdog: number | null = null;
+
+    const cleanupWatchdog = () => {
+      if (watchdog !== null) {
+        window.clearTimeout(watchdog);
+        watchdog = null;
+      }
+    };
+
+    const tryMount = () => {
+      attempts += 1;
+      mountedRef.current?.destroy();
+
+      cleanupWatchdog();
+      watchdog = window.setTimeout(() => {
+        if (ready) return;
+        if (attempts < MAX_MOUNT_ATTEMPTS) {
+          setStatus({
+            message: `First mount didn't complete in ${MOUNT_READY_TIMEOUT_MS / 1000}s — retrying…`,
+            kind: "",
+          });
+          tryMount();
+          return;
+        }
+        setStatus({
+          message: "Embed didn't load — falling back to hosted checkout.",
+          kind: "err",
+        });
+        mountedRef.current?.destroy();
+        mountedRef.current = null;
+        cope.redirectToCheckout(checkout);
+      }, MOUNT_READY_TIMEOUT_MS);
+
       mountedRef.current = cope.mountCheckout("#checkout-frame", checkout, {
-        fallback: "redirect",
+        readyTimeoutMs: 300_000,
+        fallback: "error",
         onReady: () => {
-          setStatus({ message: "Checkout loaded.", kind: "ok" });
+          ready = true;
+          cleanupWatchdog();
+          setStatus({
+            message:
+              attempts > 1
+                ? `Checkout loaded (attempt ${attempts}).`
+                : "Checkout loaded.",
+            kind: "ok",
+          });
           setMountedOnce(true);
         },
         onSuccess: () => {
-          // Don't grant access from this callback either — the webhook is the
-          // authoritative signal. This redirect is just user-friendly UX.
           setStatus({
             message: "Payment completed. Redirecting…",
             kind: "ok",
@@ -89,31 +144,26 @@ export function IframeCheckoutClient({ env }: { env: PublicEnvConfig }) {
             window.location.href = `/thank-you`;
           }, 600);
         },
-        onCancel: () =>
-          setStatus({ message: "Buyer cancelled.", kind: "" }),
-        onError: ({ code, retryable }) =>
+        onCancel: () => setStatus({ message: "Buyer cancelled.", kind: "" }),
+        onError: ({ code, retryable }) => {
+          if (ready) return;
+          if (code === "load_failed" && attempts < MAX_MOUNT_ATTEMPTS) {
+            tryMount();
+            return;
+          }
           setStatus({
             message: `Checkout error: ${code}${retryable ? " (retryable)" : ""}`,
             kind: "err",
-          }),
-        onTerminal: ({ status }) =>
-          // Buyer left the checkout in a non-success terminal state
-          // (e.g. session expired). Log so on-call sees it; on the page we
-          // just clear the busy spinner.
-          console.log(`[mountCheckout] terminal: ${status}`),
-        onFallbackRedirect: () =>
-          setStatus({
-            message: "Embed handshake didn't complete; redirecting to hosted checkout.",
-            kind: "err",
-          }),
+          });
+          cleanupWatchdog();
+        },
+        onTerminal: ({ status: terminalStatus }) =>
+          console.log(`[mountCheckout] terminal: ${terminalStatus}`),
       });
-    } catch (err) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : String(err);
-      setStatus({ message: `Error: ${message}`, kind: "err" });
-    } finally {
-      setBusy(false);
-    }
+    };
+
+    tryMount();
+    setBusy(false);
   }
 
   return (
@@ -181,9 +231,6 @@ const panel: React.CSSProperties = {
   padding: "1.25rem",
 };
 
-// SDK mountCheckout inserts the iframe inside this container. Needs real
-// dimensions or the iframe collapses to 0×0 (the SDK doesn't try to expand
-// the parent).
 const frame: React.CSSProperties = {
   width: "100%",
   minHeight: 600,
