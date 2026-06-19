@@ -1,0 +1,48 @@
+/* Global responsive baseline.
+ *
+ * The pages use inline `style={...}` for component-level styling. This file
+ * is intentionally small — only viewport/responsive concerns that inline
+ * styles can't express (media queries, `:focus-visible`, etc.). Per-page
+ * width, padding, and grid are still handled via inline `clamp()` so the
+ * layout fluidly adapts to every viewport without a media-query breakpoint.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Iframe / embedded checkout: on a phone the right panel would otherwise be
+ * 50% wide; this lets the auto-fit grid know it can take the full row.
+ */
+@media (max-width: 720px) {
+  [data-cope-frame] {
+    min-height: 520px;
+  }
+}

@@ -1,26 +1,25 @@
 # COPE Integration Samples
 
-One small Next.js app showing the three pieces a real vendor needs to take
+One small Next.js app showing the two pieces a real vendor needs to take
 payments through COPE:
 
 | Page / route | Purpose |
 |---|---|
-| [`/hosted-checkout`](./app/hosted-checkout/page.tsx) | Buy button → redirect to `checkout.cope.com` → buyer pays → back to `/thank-you` |
-| [`/iframe-checkout`](./app/iframe-checkout/page.tsx) | Buy button → mounts COPE checkout inside an `<iframe>` on your domain |
+| [`/catalog`](./app/catalog/page.tsx) | Multi-product catalog — server-side `GET /v1/commerce/products` (filtered to `status="active" && approval_status="approved"`, paginated via `?page=N`). Buyer multi-selects + qty, then hosted redirect **or** iframe embed (same cart, two checkout styles) |
 | [`/api/webhooks/cope`](./app/api/webhooks/cope/route.ts) | Receives `payment.sale.succeeded`, `subscription.cancelled`, etc. — HMAC-verified, replay-safe, dedupe'd |
 
-A production vendor uses **(one of the two checkout pages) + the webhook
-route** together. The checkout page tells the buyer *they paid*; the webhook
-tells *your backend* it really happened (signed by COPE, can't be faked from
-the browser).
+A production vendor uses **the catalog page + the webhook route** together.
+The catalog page gets the buyer to pay; the webhook tells *your backend* it
+really happened (signed by COPE, can't be faked from the browser).
 
 ## One-click deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_PRODUCT_UUID)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_API_KEY&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_API_KEY)
 
-The deploy form asks for **three** values up front (env name + publishable key
-+ product UUID). That's enough to render the site and run the checkout pages.
+The deploy form asks for **three** values up front (env name + publishable
+key + API key). That's enough to render the catalog and run both checkout
+styles end-to-end.
 
 Two values are filled in **after** the first deploy because they don't exist
 yet at that point — both are wired up automatically by the code:
@@ -40,7 +39,7 @@ yet at that point — both are wired up automatically by the code:
 ```bash
 git clone https://github.com/copecart/integration-samples
 cd integration-samples
-cp .env.example .env       # fill the four required values
+cp .env.example .env       # fill the five required values
 docker compose up
 ```
 
@@ -56,18 +55,19 @@ pnpm dev                   # http://localhost:4000
 
 ## Environment variables
 
-| Name | Required | Purpose |
+| Name | Required for | Purpose |
 |---|---|---|
-| `COPE_ENV` | yes | One of `prod` / `stg` / `qa` / `dpa`. Picks API + checkout base URLs. |
-| `COPE_PUBLISHABLE_KEY` | yes | `cope_pk_…` key from Dashboard → Settings → Developers. Safe in the browser. |
-| `COPE_PRODUCT_UUID` | yes | UUID of the product to sell. |
-| `COPE_WEBHOOK_SECRET` | yes | `whsec_…` returned when you register the webhook endpoint with COPE. |
-| `PUBLIC_BASE_URL` | yes locally / no on Vercel & Railway | Where this app is reachable. Used for `success_url`, `cancel_url`, webhook URL. On Vercel/Railway falls back to `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`. |
-| `COPE_DEFAULT_CURRENCY` | no | Default form value. Defaults to `EUR`. |
-| `COPE_API_BASE` | no | Override the API URL derived from `COPE_ENV`. |
-| `COPE_CHECKOUT_BASE` | no | Override the checkout URL derived from `COPE_ENV`. |
+| `COPE_ENV` | always | One of `prod` / `stg`. Picks API + checkout base URLs. |
+| `COPE_PUBLISHABLE_KEY` | always | `cope_pk_…` key from Dashboard → Settings → Developers. Safe in the browser — drives the cart SDK. |
+| `COPE_API_KEY` | always | Server-only `cope_sk_…` key. Two scopes used by this app: `commerce:products:read` (for `/catalog`) and `webhooks:write` (for `pnpm register`). Mint one key with both scopes and reuse. Never reaches the browser. |
+| `PUBLIC_BASE_URL` | always (auto on Vercel/Railway) | Where this app is reachable. Used for `success_url`, `cancel_url`, webhook URL. Falls back to `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`. |
+| `COPE_WEBHOOK_SECRET` | `/api/webhooks/cope` | `whsec_…` returned when you register the webhook endpoint with COPE. Without it the route returns HTTP 503. |
+| `COPE_DEFAULT_CURRENCY` | optional | Default form value. Defaults to `EUR`. |
+| `COPE_API_BASE` | optional | Override the Cart API URL (publishable-key auth) derived from `COPE_ENV`. |
+| `COPE_COMMERCE_API_BASE` | optional | Override the Commerce-v1 API URL (`cope_sk_*` auth) derived from `COPE_ENV`. Different host from `COPE_API_BASE`: `api.cope.com` for prod / `api.stg.cope-demo.com` for staging. |
+| `COPE_CHECKOUT_BASE` | optional | Override the checkout URL derived from `COPE_ENV`. |
 
-⚠️ **Never put a `cope_sk_…` key in any frontend env.** Secret keys are
+⚠️ **Never put a `cope_sk_…` key in any frontend env.** `COPE_API_KEY` is
 server-only. The `cope_pk_…` variant is what belongs in `COPE_PUBLISHABLE_KEY`.
 
 ## Architecture
@@ -85,11 +85,12 @@ server-only. The `cope_pk_…` variant is what belongs in `COPE_PUBLISHABLE_KEY`
    grantAccess(), notifyCRM(), …
 ```
 
-- The checkout pages (hosted + iframe) are **frontend** concerns — they get
-  the buyer to a payment form. Use one or the other based on UX trade-off.
+- The catalog page is a **frontend** concern — it gets the buyer to a payment
+  form, either redirecting to `checkout.cope.com` or mounting the checkout
+  inside an `<iframe>` on your origin. Same cart, same SDK, two UX styles.
 - The webhook route is a **backend** concern — it's where your business logic
   reacts to confirmed payments. It runs regardless of which checkout style
-  you picked.
+  the buyer picked.
 
 ### Why the webhook is the source of truth
 
@@ -196,9 +197,9 @@ The friction points you're most likely to hit, with concrete fixes:
 
 ### `Error: success_url must use HTTPS`
 
-The staging / QA / DPA backends refuse `http://localhost`-style URLs for
-`success_url` and `cancel_url`. Either deploy first (Vercel/Railway give you
-HTTPS automatically) or run a tunnel locally:
+The staging backend refuses `http://localhost`-style URLs for `success_url`
+and `cancel_url`. Either deploy first (Vercel/Railway give you HTTPS
+automatically) or run a tunnel locally:
 
 ```bash
 # cloudflared (no signup, free)
@@ -235,10 +236,11 @@ wasn't registered. Re-check the embed-domains list matches the URL bar.
 
 ### `Error: Invalid or inactive SDK key`
 
-The key's environment (prefix) doesn't match `COPE_ENV`. A `cope_pk_live_…`
-key from `stg.cope-demo.com` is a staging key with confusing naming — that's
-fine. But a key from production won't work on staging and vice versa. Verify
-you copied the publishable key from the *same environment* as `COPE_ENV`.
+The key's environment doesn't match `COPE_ENV`. A `cope_pk_live_…` key from
+`stg.cope-demo.com` is a staging key with confusing naming — that's fine.
+But a production key won't work on staging and vice versa. Verify you copied
+the publishable key from the *same environment* as `COPE_ENV` (one of
+`prod` / `stg`).
 
 ### `Error: Invalid publishableKey. Must start with "cope_pk_"`
 
@@ -252,6 +254,22 @@ This sample uses Node 22 (pnpm 10 requires it) and passes `--ignore-scripts`
 in the Dockerfile to skip `sharp`'s postinstall (we don't use `next/image`).
 If you upgrade Next.js or use image optimization, drop `--ignore-scripts` and
 add the dep you need built to `pnpm.onlyBuiltDependencies` in `package.json`.
+
+### `Catalog request failed: HTTP 401 (request …)`
+
+The catalog page got a 401 from the Commerce API. Three likely causes:
+
+- The bearer token isn't recognized as a `cope_sk_*` key — verify
+  `COPE_API_KEY` starts with `cope_sk_` and was copied without truncation.
+- The key targets a different environment — see the SDK-key troubleshooting
+  above. `stg`-side keys are accepted only by `api.stg.cope-demo.com`,
+  prod-side only by `api.cope.com`. The code picks the right host
+  automatically from `COPE_ENV`.
+- The key is missing the `commerce:products:read` scope. Re-create it in the
+  dashboard with both `commerce:products:read` + `webhooks:write` selected.
+
+You'll see a yellow warning banner with the exact `HTTP NNN` + request id on
+top of the catalog page — paste that into a support ticket if needed.
 
 ### Webhook deliveries from COPE never arrive
 

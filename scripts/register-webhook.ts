@@ -46,8 +46,6 @@ function loadDotenv(path = ".env"): void {
 const ENV_PRESETS: Record<string, string> = {
   prod: "https://api.cope.com",
   stg: "https://stg.cope-demo.com/gateway/cart_api",
-  qa: "https://qa.cope-demo.com/gateway/cart_api",
-  dpa: "https://dpa.cope-demo.com/gateway/cart_api",
 };
 
 const SUBSCRIBED_EVENT_TYPES = [

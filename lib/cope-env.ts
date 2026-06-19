@@ -1,7 +1,7 @@
 /**
  * Resolves the COPE API + Checkout base URLs from env vars.
  *
- * One sample app, four targetable environments (prod / stg / qa / dpa).
+ * One sample app, two targetable environments (prod / stg).
  * Vendors clone, set COPE_ENV, and don't think about URLs again.
  *
  *   - `getServerEnvConfig()` runs in server contexts (RSC / route handlers).
@@ -10,33 +10,60 @@
  *     non-secret values (NEXT_PUBLIC_* mirrors).
  */
 
-export type CopeEnvName = "prod" | "stg" | "qa" | "dpa";
+export type CopeEnvName = "prod" | "stg";
 
 export interface CopeEnvConfig {
   readonly name: CopeEnvName;
+  /**
+   * Cart API base (publishable-key auth, used by the SDK in the browser).
+   * `stg.cope-demo.com/gateway/cart_api` etc.
+   */
   readonly apiBase: string;
+  /**
+   * Commerce-v1 API base (secret API-key auth, used server-side to fetch the
+   * vendor's catalog). Different host from `apiBase` — `api.stg.cope-demo.com`
+   * for staging; `api.cope.com` for production. The cart API goes through a
+   * gateway that does Clerk-style auth and rejects raw `cope_sk_*` keys.
+   */
+  readonly commerceApiBase: string;
   readonly checkoutBase: string;
   readonly publicBaseUrl: string;
   readonly publishableKey: string;
-  readonly productUuid: string;
   readonly defaultCurrency: string;
+  /**
+   * Server-only secret key (`cope_sk_live_*` / `cope_sk_test_*`). Used by:
+   * - `/catalog` page → `GET /v1/commerce/products` (scope: `commerce:products:read`)
+   * - `pnpm register` script → `POST /v1/webhooks/endpoints` (scope: `webhooks:write`)
+   *
+   * Mint one key with both scopes in Dashboard → Settings → Developers →
+   * API keys, then reuse it for everything server-side. Never serialize into
+   * the client config — see {@link toPublicConfig}.
+   */
+  readonly apiKey: string;
 }
 
-const PRESETS: Record<CopeEnvName, { apiBase: string; checkoutBase: string }> = {
-  prod: { apiBase: "https://api.cope.com",                       checkoutBase: "https://cope.com" },
-  stg:  { apiBase: "https://stg.cope-demo.com/gateway/cart_api", checkoutBase: "https://stg.cope-demo.com" },
-  qa:   { apiBase: "https://qa.cope-demo.com/gateway/cart_api",  checkoutBase: "https://qa.cope-demo.com" },
-  dpa:  { apiBase: "https://dpa.cope-demo.com/gateway/cart_api", checkoutBase: "https://dpa.cope-demo.com" },
+const PRESETS: Record<
+  CopeEnvName,
+  { apiBase: string; commerceApiBase: string; checkoutBase: string }
+> = {
+  prod: {
+    apiBase: "https://api.cope.com",
+    commerceApiBase: "https://api.cope.com",
+    checkoutBase: "https://cope.com",
+  },
+  stg: {
+    apiBase: "https://stg.cope-demo.com/gateway/cart_api",
+    commerceApiBase: "https://api.stg.cope-demo.com",
+    checkoutBase: "https://stg.cope-demo.com",
+  },
 };
 
 function resolveEnvName(raw: string | undefined): CopeEnvName {
   const value = (raw ?? "stg").toLowerCase();
-  if (value === "prod" || value === "stg" || value === "qa" || value === "dpa") {
+  if (value === "prod" || value === "stg") {
     return value;
   }
-  throw new Error(
-    `COPE_ENV must be one of prod | stg | qa | dpa, got: ${raw}`,
-  );
+  throw new Error(`COPE_ENV must be one of prod | stg, got: ${raw}`);
 }
 
 export function getServerEnvConfig(): CopeEnvConfig {
@@ -46,11 +73,12 @@ export function getServerEnvConfig(): CopeEnvConfig {
   return {
     name,
     apiBase: process.env.COPE_API_BASE ?? preset.apiBase,
+    commerceApiBase: process.env.COPE_COMMERCE_API_BASE ?? preset.commerceApiBase,
     checkoutBase: process.env.COPE_CHECKOUT_BASE ?? preset.checkoutBase,
     publicBaseUrl: resolvePublicBaseUrl(),
     publishableKey: process.env.COPE_PUBLISHABLE_KEY ?? "",
-    productUuid: process.env.COPE_PRODUCT_UUID ?? "",
     defaultCurrency: process.env.COPE_DEFAULT_CURRENCY ?? "EUR",
+    apiKey: process.env.COPE_API_KEY ?? "",
   };
 }
 
@@ -81,8 +109,8 @@ function resolvePublicBaseUrl(): string {
 }
 
 /**
- * Snapshot safe to pass to client components. No secrets — publishable key
- * and product UUID are both intended for the browser.
+ * Snapshot safe to pass to client components. No secrets — the publishable
+ * key is intended for the browser; `apiKey` is intentionally stripped here.
  */
 export interface PublicEnvConfig {
   readonly name: CopeEnvName;
@@ -90,7 +118,6 @@ export interface PublicEnvConfig {
   readonly checkoutBase: string;
   readonly publicBaseUrl: string;
   readonly publishableKey: string;
-  readonly productUuid: string;
   readonly defaultCurrency: string;
 }
 
@@ -101,7 +128,6 @@ export function toPublicConfig(server: CopeEnvConfig): PublicEnvConfig {
     checkoutBase: server.checkoutBase,
     publicBaseUrl: server.publicBaseUrl,
     publishableKey: server.publishableKey,
-    productUuid: server.productUuid,
     defaultCurrency: server.defaultCurrency,
   };
 }

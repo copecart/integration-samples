@@ -17,9 +17,9 @@ export default async function ThankYouPage({
   return (
     <main
       style={{
-        maxWidth: 560,
-        margin: "5rem auto",
-        padding: "2rem",
+        maxWidth: 600,
+        margin: "clamp(2rem, 8vw, 5rem) auto",
+        padding: "clamp(1rem, 5vw, 2rem)",
         textAlign: "center",
         lineHeight: 1.6,
       }}
@@ -40,7 +40,7 @@ export default async function ThankYouPage({
       >
         ✓
       </div>
-      <h1 style={{ fontSize: "1.6rem", margin: "0.5rem 0" }}>Thank you!</h1>
+      <h1 style={{ fontSize: "clamp(1.3rem, 4vw, 1.6rem)", margin: "0.5rem 0" }}>Thank you!</h1>
       <p style={{ color: "#4b5563" }}>Your payment was successful.</p>
 
       <dl
