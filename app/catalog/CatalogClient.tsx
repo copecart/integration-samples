@@ -109,13 +109,9 @@ export function CatalogClient({
       }
 
       setStatus({ message: "Creating checkout…", kind: "" });
-      const successPath = `/thank-you`;
-      const cancelPath = `/catalog`;
 
       if (mode === "hosted") {
         const hostedCheckout = await cope.checkout(cart.id, {
-          success_url: `${env.publicBaseUrl}${successPath}`,
-          cancel_url: `${env.publicBaseUrl}${cancelPath}`,
           consents: [{ type: "terms-of-purchase", version: "1.0" }],
         });
         cope.redirectToCheckout(hostedCheckout);
@@ -125,8 +121,6 @@ export function CatalogClient({
       // Iframe mode
       const checkout = await cope.checkout(cart.id, {
         embed_origin: window.location.origin,
-        success_url: `${window.location.origin}${successPath}`,
-        cancel_url: `${window.location.origin}${cancelPath}`,
         consents: [{ type: "terms-of-purchase", version: "1.0" }],
       });
 
