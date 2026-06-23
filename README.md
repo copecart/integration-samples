@@ -14,8 +14,8 @@ really happened (signed by COPE, can't be faked from the browser).
 
 ## One-click deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_API_KEY&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_ENV,COPE_PUBLISHABLE_KEY,COPE_API_KEY)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&env=COPE_PUBLISHABLE_KEY,COPE_API_KEY&envDescription=See%20.env.example%20for%20what%20each%20var%20is&envLink=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples%23environment-variables&project-name=cope-integration-samples&repository-name=cope-integration-samples)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fcopecart%2Fintegration-samples&envs=COPE_PUBLISHABLE_KEY,COPE_API_KEY)
 
 The deploy form asks for **three** values up front (env name + publishable
 key + API key). That's enough to render the catalog and run both checkout
@@ -57,15 +57,14 @@ pnpm dev                   # http://localhost:4000
 
 | Name | Required for | Purpose |
 |---|---|---|
-| `COPE_ENV` | always | One of `prod` / `stg`. Picks API + checkout base URLs. |
 | `COPE_PUBLISHABLE_KEY` | always | `cope_pk_…` key from Dashboard → Settings → Developers. Safe in the browser — drives the cart SDK. |
 | `COPE_API_KEY` | always | Server-only `cope_sk_…` key. Two scopes used by this app: `commerce:products:read` (for `/catalog`) and `webhooks:write` (for `pnpm register`). Mint one key with both scopes and reuse. Never reaches the browser. |
 | `PUBLIC_BASE_URL` | always (auto on Vercel/Railway) | Where this app is reachable. Used for `success_url`, `cancel_url`, webhook URL. Falls back to `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `RAILWAY_PUBLIC_DOMAIN`. |
 | `COPE_WEBHOOK_SECRET` | `/api/webhooks/cope` | `whsec_…` returned when you register the webhook endpoint with COPE. Without it the route returns HTTP 503. |
 | `COPE_DEFAULT_CURRENCY` | optional | Default form value. Defaults to `EUR`. |
-| `COPE_API_BASE` | optional | Override the Cart API URL (publishable-key auth) derived from `COPE_ENV`. |
-| `COPE_COMMERCE_API_BASE` | optional | Override the Commerce-v1 API URL (`cope_sk_*` auth) derived from `COPE_ENV`. Different host from `COPE_API_BASE`: `api.cope.com` for prod / `api.stg.cope-demo.com` for staging. |
-| `COPE_CHECKOUT_BASE` | optional | Override the checkout URL derived from `COPE_ENV`. |
+| `COPE_API_BASE` | optional | Override the Cart API URL (publishable-key auth). Defaults to `https://api.cope.com`. |
+| `COPE_COMMERCE_API_BASE` | optional | Override the Commerce-v1 API URL (`cope_sk_*` auth). Defaults to `https://api.cope.com`. |
+| `COPE_CHECKOUT_BASE` | optional | Override the checkout URL. Defaults to `https://cope.com`. |
 
 ⚠️ **Never put a `cope_sk_…` key in any frontend env.** `COPE_API_KEY` is
 server-only. The `cope_pk_…` variant is what belongs in `COPE_PUBLISHABLE_KEY`.
@@ -236,11 +235,9 @@ wasn't registered. Re-check the embed-domains list matches the URL bar.
 
 ### `Error: Invalid or inactive SDK key`
 
-The key's environment doesn't match `COPE_ENV`. A `cope_pk_live_…` key from
-`stg.cope-demo.com` is a staging key with confusing naming — that's fine.
-But a production key won't work on staging and vice versa. Verify you copied
-the publishable key from the *same environment* as `COPE_ENV` (one of
-`prod` / `stg`).
+This app targets production. Verify that `COPE_PUBLISHABLE_KEY` is a
+production `cope_pk_…` key (minted on `cope.com`, not on a staging
+dashboard). Staging keys are rejected by `api.cope.com`.
 
 ### `Error: Invalid publishableKey. Must start with "cope_pk_"`
 
@@ -261,10 +258,8 @@ The catalog page got a 401 from the Commerce API. Three likely causes:
 
 - The bearer token isn't recognized as a `cope_sk_*` key — verify
   `COPE_API_KEY` starts with `cope_sk_` and was copied without truncation.
-- The key targets a different environment — see the SDK-key troubleshooting
-  above. `stg`-side keys are accepted only by `api.stg.cope-demo.com`,
-  prod-side only by `api.cope.com`. The code picks the right host
-  automatically from `COPE_ENV`.
+- The key targets a different environment — `api.cope.com` accepts only
+  production keys. See the SDK-key troubleshooting above.
 - The key is missing the `commerce:products:read` scope. Re-create it in the
   dashboard with both `commerce:products:read` + `webhooks:write` selected.
 
@@ -293,7 +288,7 @@ the other, the flow stays broken.
 | | **Embed origin allow-list** | **`success_url` / `cancel_url`** |
 |---|---|---|
 | What it controls | Which parent origin can iframe the checkout (browser-side `frame-ancestors` CSP) | Where COPE redirects the buyer's browser after the checkout completes or is cancelled |
-| Where configured | Per-business list in [Settings → Checkout → Embed domains](https://stg.cope-demo.com/settings/checkout) or via `POST /v1/commerce/checkout/embed-domains` (scope: `commerce:checkout-settings:write`) | Passed inline on each `cope.checkout(...)` call as `success_url` and `cancel_url` |
+| Where configured | Per-business list in [Settings → Checkout → Embed domains](https://cope.com/settings/checkout) or via `POST /v1/commerce/checkout/embed-domains` (scope: `commerce:checkout-settings:write`) | Passed inline on each `cope.checkout(...)` call as `success_url` and `cancel_url` |
 | Validation | Browser CSP — wrong origin → `frame-ancestors 'none'`, Chrome shows "&lt;host&gt; refused to connect" | Backend on cart-create — non-HTTPS or malformed → `success_url must use HTTPS` |
 | Side effect | Registering an embed origin also registers it with **Stripe Payment Method Domains**, so wallets (Apple Pay / Google Pay) work in the embed | None |
 | When you'll hit it failing | Iframe checkout, after the SDK posts a checkout request | Both checkout styles, immediately when calling `cope.checkout(...)` |

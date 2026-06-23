@@ -1,8 +1,5 @@
 /**
- * Resolves the COPE API + Checkout base URLs from env vars.
- *
- * One sample app, two targetable environments (prod / stg).
- * Vendors clone, set COPE_ENV, and don't think about URLs again.
+ * Resolves the COPE API + Checkout base URLs.
  *
  *   - `getServerEnvConfig()` runs in server contexts (RSC / route handlers).
  *   - `getPublicEnvConfig()` is what we serialize into client components so
@@ -10,20 +7,16 @@
  *     non-secret values (NEXT_PUBLIC_* mirrors).
  */
 
-export type CopeEnvName = "prod" | "stg";
+export type CopeEnvName = "prod";
 
 export interface CopeEnvConfig {
   readonly name: CopeEnvName;
-  /**
-   * Cart API base (publishable-key auth, used by the SDK in the browser).
-   * `stg.cope-demo.com/gateway/cart_api` etc.
-   */
+  /** Cart API base (publishable-key auth, used by the SDK in the browser). */
   readonly apiBase: string;
   /**
    * Commerce-v1 API base (secret API-key auth, used server-side to fetch the
-   * vendor's catalog). Different host from `apiBase` — `api.stg.cope-demo.com`
-   * for staging; `api.cope.com` for production. The cart API goes through a
-   * gateway that does Clerk-style auth and rejects raw `cope_sk_*` keys.
+   * vendor's catalog). The cart API goes through a gateway that does
+   * Clerk-style auth and rejects raw `cope_sk_*` keys.
    */
   readonly commerceApiBase: string;
   readonly checkoutBase: string;
@@ -42,39 +35,18 @@ export interface CopeEnvConfig {
   readonly apiKey: string;
 }
 
-const PRESETS: Record<
-  CopeEnvName,
-  { apiBase: string; commerceApiBase: string; checkoutBase: string }
-> = {
-  prod: {
-    apiBase: "https://api.cope.com",
-    commerceApiBase: "https://api.cope.com",
-    checkoutBase: "https://cope.com",
-  },
-  stg: {
-    apiBase: "https://stg.cope-demo.com/gateway/cart_api",
-    commerceApiBase: "https://api.stg.cope-demo.com",
-    checkoutBase: "https://stg.cope-demo.com",
-  },
-};
-
-function resolveEnvName(raw: string | undefined): CopeEnvName {
-  const value = (raw ?? "stg").toLowerCase();
-  if (value === "prod" || value === "stg") {
-    return value;
-  }
-  throw new Error(`COPE_ENV must be one of prod | stg, got: ${raw}`);
-}
+const PROD_PRESET = {
+  apiBase: "https://api.cope.com",
+  commerceApiBase: "https://api.cope.com",
+  checkoutBase: "https://cope.com",
+} as const;
 
 export function getServerEnvConfig(): CopeEnvConfig {
-  const name = resolveEnvName(process.env.COPE_ENV);
-  const preset = PRESETS[name];
-
   return {
-    name,
-    apiBase: process.env.COPE_API_BASE ?? preset.apiBase,
-    commerceApiBase: process.env.COPE_COMMERCE_API_BASE ?? preset.commerceApiBase,
-    checkoutBase: process.env.COPE_CHECKOUT_BASE ?? preset.checkoutBase,
+    name: "prod",
+    apiBase: process.env.COPE_API_BASE ?? PROD_PRESET.apiBase,
+    commerceApiBase: process.env.COPE_COMMERCE_API_BASE ?? PROD_PRESET.commerceApiBase,
+    checkoutBase: process.env.COPE_CHECKOUT_BASE ?? PROD_PRESET.checkoutBase,
     publicBaseUrl: resolvePublicBaseUrl(),
     publishableKey: process.env.COPE_PUBLISHABLE_KEY ?? "",
     defaultCurrency: process.env.COPE_DEFAULT_CURRENCY ?? "EUR",

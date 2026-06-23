@@ -7,7 +7,7 @@
  * Reads from .env (also accepts process.env):
  *   COPE_API_KEY      — server-side secret (`cope_sk_…`). NEVER ship to the
  *                       frontend. Used only by this script.
- *   COPE_API_BASE     — usually derived from COPE_ENV; override if needed.
+ *   COPE_API_BASE     — defaults to https://api.cope.com; override if needed.
  *   PUBLIC_BASE_URL   — your deployed URL (https://...vercel.app). Required
  *                       because COPE has to POST back to a public host.
  *
@@ -43,10 +43,7 @@ function loadDotenv(path = ".env"): void {
   }
 }
 
-const ENV_PRESETS: Record<string, string> = {
-  prod: "https://api.cope.com",
-  stg: "https://stg.cope-demo.com/gateway/cart_api",
-};
+const PROD_API_BASE = "https://api.cope.com";
 
 const SUBSCRIBED_EVENT_TYPES = [
   "payment.sale.succeeded",
@@ -64,14 +61,9 @@ interface RegisterEndpointResponse {
 async function main(): Promise<void> {
   loadDotenv();
 
-  const env = (process.env.COPE_ENV ?? "stg").toLowerCase();
-  const apiBase = process.env.COPE_API_BASE ?? ENV_PRESETS[env];
+  const apiBase = process.env.COPE_API_BASE ?? PROD_API_BASE;
   const apiKey = process.env.COPE_API_KEY;
   const publicBaseUrl = process.env.PUBLIC_BASE_URL;
-
-  if (!apiBase) {
-    fail(`COPE_API_BASE not set and COPE_ENV=${env} has no preset.`);
-  }
   if (!apiKey) {
     fail(
       "COPE_API_KEY is required. Get a `cope_sk_…` key from Dashboard → Settings → Developers.\n" +

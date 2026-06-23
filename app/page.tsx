@@ -53,8 +53,7 @@ export default function Home() {
           Active environment
         </h2>
         <pre style={pre}>
-          {`COPE_ENV          = ${env.name}
-COPE_API_BASE     = ${env.apiBase}
+          {`COPE_API_BASE     = ${env.apiBase}
 COPE_CHECKOUT_BASE = ${env.checkoutBase}
 PUBLIC_BASE_URL   = ${env.publicBaseUrl}`}
         </pre>
