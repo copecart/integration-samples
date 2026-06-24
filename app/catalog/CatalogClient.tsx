@@ -33,8 +33,10 @@ type SetupError =
   | { kind: "auth"; status: number; message: string; requestId: string | null }
   /** success_url / cancel_url not in Redirect URLs allowlist. */
   | { kind: "redirect-urls"; fields: string[]; urls: string[] }
-  /** Selected product isn't active+approved on the backend. */
-  | { kind: "not-saleable"; message: string }
+  /** Selected product isn't saleable. `blockReason` (when present) discriminates
+   *  product-side issues (status/approval) from seller-side issues (Stripe
+   *  onboarding not complete). */
+  | { kind: "not-saleable"; message: string; blockReason: string | null }
   /** Order total below Stripe's per-currency minimum charge. */
   | { kind: "below-minimum"; message: string }
   /** Tax engine needs buyer country/postal but cart has none. */
@@ -515,11 +517,17 @@ function classifyApiError(
     };
   }
 
-  // 3) Catalog-side problems — caller picked a draft / archived product.
+  // 3) Catalog- or seller-side problems. The API attaches `block_reason` on
+  // the error entry to discriminate (e.g. `seller_not_settleable` = Stripe
+  // onboarding incomplete, vs product-status issues).
   if (err.code === "not_saleable") {
+    const entry = err.errors[0] as
+      | { message?: string; block_reason?: string }
+      | undefined;
     return {
       kind: "not-saleable",
-      message: err.errors[0]?.message ?? err.message,
+      message: entry?.message ?? err.message,
+      blockReason: entry?.block_reason ?? null,
     };
   }
 
@@ -749,19 +757,60 @@ function SetupErrorBanner({ error }: { error: SetupError }) {
         </Banner>
       );
 
-    case "not-saleable":
+    case "not-saleable": {
+      // `seller_not_settleable` is the most common cause in a freshly-created
+      // business — Stripe onboarding wasn't completed, so the seller can't
+      // accept payments yet. The fix is in a different dashboard area than
+      // the generic product-status case.
+      if (error.blockReason === "seller_not_settleable") {
+        return (
+          <Banner title="Your seller account can't accept payments yet.">
+            <p>
+              The backend reported{" "}
+              <code className="cope-inline">seller_not_settleable</code>: {error.message}
+            </p>
+            <Steps>
+              <li>
+                Open{" "}
+                <ExtLink href="https://app.cope.com/settings/payouts">
+                  Dashboard → Settings → Payouts
+                </ExtLink>{" "}
+                (or whichever section your dashboard calls{" "}
+                <em>Bank / Stripe onboarding</em>).
+              </li>
+              <li>
+                Complete the Stripe Connect KYC flow — usually identity
+                verification, bank details, and tax form.
+              </li>
+              <li>
+                Wait a few minutes for Stripe to mark the account as{" "}
+                <code className="cope-inline">charges_enabled = true</code>, then
+                click Buy again.
+              </li>
+            </Steps>
+            <Footnote>
+              This is a one-time setup per business. After onboarding completes
+              you can sell from any product.
+            </Footnote>
+          </Banner>
+        );
+      }
+
       return (
         <Banner title="One of the selected products isn't saleable.">
           <p>
-            The backend reported <code className="cope-inline">not_saleable</code>:{" "}
-            {error.message}
+            The backend reported <code className="cope-inline">not_saleable</code>
+            {error.blockReason && (
+              <>
+                {" "}(<code className="cope-inline">{error.blockReason}</code>)
+              </>
+            )}
+            : {error.message}
           </p>
           <Steps>
             <li>
               Open{" "}
-              <ExtLink href={DASHBOARD_PRODUCTS}>
-                Dashboard → Products
-              </ExtLink>{" "}
+              <ExtLink href={DASHBOARD_PRODUCTS}>Dashboard → Products</ExtLink>{" "}
               and confirm each selected product is{" "}
               <strong>status: active</strong> and{" "}
               <strong>approval: approved</strong>.
@@ -773,6 +822,7 @@ function SetupErrorBanner({ error }: { error: SetupError }) {
           </Steps>
         </Banner>
       );
+    }
 
     case "below-minimum":
       return (

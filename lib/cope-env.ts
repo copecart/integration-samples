@@ -36,8 +36,18 @@ export interface CopeEnvConfig {
 }
 
 const PROD_PRESET = {
-  apiBase: "https://api.cope.com",
+  // Browser-facing Cart API (publishable-key auth, hit by the SDK from the
+  // page). Lives behind the same `/gateway/cart_api` prefix as staging — and
+  // critically, this is the ONLY prod host that emits CORS headers for the
+  // cart endpoints. Direct `api.cope.com/api/cart/v1/...` is server-only and
+  // returns no `Access-Control-Allow-Origin`, so any browser call there is
+  // dead on arrival.
+  apiBase: "https://app.cope.com/gateway/cart_api",
+  // Server-side Commerce API (secret cope_sk_* auth, e.g. /v1/commerce/products).
   commerceApiBase: "https://api.cope.com",
+  // Hosted checkout origin — must match the origin of the URL the backend
+  // returns in `checkout_url`, else the SDK's `normalizeCheckoutResult`
+  // throws "Checkout URL origin … does not match expected …".
   checkoutBase: "https://cope.com",
 } as const;
 
