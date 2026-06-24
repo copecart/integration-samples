@@ -15,103 +15,50 @@ export default async function ThankYouPage({
   );
 
   return (
-    <main
-      style={{
-        maxWidth: 600,
-        margin: "clamp(2rem, 8vw, 5rem) auto",
-        padding: "clamp(1rem, 5vw, 2rem)",
-        textAlign: "center",
-        lineHeight: 1.6,
-      }}
-    >
-      <div
-        style={{
-          width: 56,
-          height: 56,
-          margin: "0 auto 1rem",
-          borderRadius: "50%",
-          background: "#d1fae5",
-          color: "#047857",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "2rem",
-        }}
-      >
+    <main className="cope-container cope-container--center">
+      <div className="cope-success-badge" aria-hidden>
         ✓
       </div>
-      <h1 style={{ fontSize: "clamp(1.3rem, 4vw, 1.6rem)", margin: "0.5rem 0" }}>Thank you!</h1>
-      <p style={{ color: "#4b5563" }}>Your payment was successful.</p>
+      <h1 className="cope-h1" style={{ marginTop: 0 }}>
+        Thank you!
+      </h1>
+      <p className="cope-lead" style={{ marginInline: "auto" }}>
+        Your payment was successful.
+      </p>
 
-      <dl
-        style={{
-          textAlign: "left",
-          background: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: "1rem",
-          margin: "1.5rem 0",
-          fontSize: "0.9rem",
-        }}
-      >
+      <dl className="cope-params">
         {entries.length === 0 ? (
           <>
-            <dt style={{ fontWeight: 600, color: "#6b7280" }}>No query params</dt>
-            <dd style={{ margin: 0, fontFamily: "monospace" }}>
-              (you arrived here directly)
-            </dd>
+            <dt>No query params</dt>
+            <dd>(you arrived here directly)</dd>
           </>
         ) : (
           entries.map(([k, v]) => (
             <div key={k}>
-              <dt style={{ fontWeight: 600, color: "#6b7280" }}>{k}</dt>
-              <dd
-                style={{
-                  margin: "0 0 0.5rem",
-                  fontFamily: "monospace",
-                  wordBreak: "break-all",
-                }}
-              >
-                {String(v)}
-              </dd>
+              <dt>{k}</dt>
+              <dd>{String(v)}</dd>
             </div>
           ))
         )}
       </dl>
 
-      <Link
-        href="/"
-        style={{
-          display: "inline-block",
-          marginTop: "1rem",
-          padding: "0.5rem 1.25rem",
-          background: "#2563eb",
-          color: "#fff",
-          textDecoration: "none",
-          borderRadius: 8,
-        }}
-      >
+      <Link href="/" className="cope-btn cope-btn--primary">
         Back to samples
       </Link>
 
-      <p
-        style={{
-          background: "#fffbeb",
-          border: "1px solid #fde68a",
-          padding: "0.75rem 1rem",
-          borderRadius: 8,
-          marginTop: "1.5rem",
-          fontSize: "0.9rem",
-          color: "#92400e",
-          textAlign: "left",
-        }}
+      <div
+        className="cope-banner cope-banner--warning"
+        style={{ marginTop: "1.5rem", textAlign: "left" }}
       >
-        <strong>Do not grant access on this page.</strong> The{" "}
-        <code>order_uuid</code> in the URL is a UX convenience — anyone can
-        craft a fake one. Rely on the signed{" "}
-        <code>payment.sale.succeeded</code> webhook delivered to{" "}
-        <code>/api/webhooks/cope</code> to update your database.
-      </p>
+        <span>
+          <strong>Do not grant access on this page.</strong> The{" "}
+          <code className="cope-inline">order_uuid</code> in the URL is a UX
+          convenience — anyone can craft a fake one. Rely on the signed{" "}
+          <code className="cope-inline">payment.sale.succeeded</code> webhook
+          delivered to <code className="cope-inline">/api/webhooks/cope</code>{" "}
+          to update your database.
+        </span>
+      </div>
     </main>
   );
 }

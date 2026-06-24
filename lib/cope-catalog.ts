@@ -135,7 +135,7 @@ export async function fetchCatalog(
     return {
       products: [],
       pagination: { ...EMPTY_PAGINATION, currentPage: safePage },
-      warning: `Catalog request failed: HTTP ${res.status}${requestId ? ` (request ${requestId})` : ""}. Check that COPE_API_KEY has the commerce:products:read scope.`,
+      warning: `Products request failed: HTTP ${res.status}${requestId ? ` (request ${requestId})` : ""}. Check that COPE_API_KEY has the commerce:products:read scope.`,
     };
   }
 
